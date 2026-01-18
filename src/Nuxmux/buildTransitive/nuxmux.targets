@@ -1,0 +1,167 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+
+<Project>
+    <Target Name="NuxmuxGenerate"
+            DependsOnTargets="Restore"
+            BeforeTargets="CollectPackageReferences"
+            Condition="'@(NuxmuxDir)' != ''">
+
+        <Error Condition="'$(_NuxmuxHostRid)' == ''" Text="_NuxmuxHostRid is required."/>
+        <Error Condition="'$(NuxmuxBaseDir)' == ''" Text="NuxmuxBaseDir is required."/>
+
+        <PropertyGroup>
+            <_NuxmuxTemplatePath>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)', '..', 'runtimes', '$(_NuxmuxHostRid)', 'native', '$(_NuxmuxTemplateFileName)'))</_NuxmuxTemplatePath>
+        </PropertyGroup>
+
+        <Error Condition="!Exists('$(_NuxmuxTemplatePath)')" Text="nuxmux template not found: $(_NuxmuxTemplatePath)"/>
+
+        <ItemGroup>
+            <_NuxmuxToolFiles Include="@(NuxmuxDir)"/>
+        </ItemGroup>
+
+        <CreateItem Include="@(_NuxmuxToolFiles)">
+            <Output TaskParameter="Include" ItemName="_NuxmuxToolFilesExpanded"/>
+        </CreateItem>
+
+        <ItemGroup>
+            <_NuxmuxToolFiles Remove="@(_NuxmuxToolFiles)"/>
+            <_NuxmuxToolFiles Include="@(_NuxmuxToolFilesExpanded)"/>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxToolFiles Update="@(_NuxmuxToolFiles)">
+                <_NuxmuxToolPathTrim>$([System.String]::Copy('%(_NuxmuxToolFiles.Path)').Trim())</_NuxmuxToolPathTrim>
+            </_NuxmuxToolFiles>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxToolFilesMissingPath Include="@(_NuxmuxToolFiles)" Condition="'%(_NuxmuxToolFiles._NuxmuxToolPathTrim)' == ''"/>
+            <_NuxmuxToolFilesBadPath Include="@(_NuxmuxToolFiles)" Condition="'%(_NuxmuxToolFiles._NuxmuxToolPathTrim)' != '' and ($([System.String]::Copy('%(_NuxmuxToolFiles._NuxmuxToolPathTrim)').Contains('*')) or $([System.String]::Copy('%(_NuxmuxToolFiles._NuxmuxToolPathTrim)').Contains('?')))"/>
+        </ItemGroup>
+
+        <Error Condition="'@(_NuxmuxToolFilesMissingPath)' != ''" Text="NuxmuxDir Path is required."/>
+        <Error Condition="'@(_NuxmuxToolFilesBadPath)' != ''" Text="NuxmuxDir Path must not contain wildcards: @(_NuxmuxToolFilesBadPath)"/>
+        <Error Condition="'$(NuxmuxBaseDir)' != '' and !$([System.IO.Path]::IsPathRooted('$(NuxmuxBaseDir)'))" Text="NuxmuxBaseDir must be an absolute path."/>
+
+        <ItemGroup>
+            <_NuxmuxToolFiles Update="@(_NuxmuxToolFiles)">
+                <_NuxmuxToolName>%(Filename)%(Extension)</_NuxmuxToolName>
+                <_NuxmuxSourceDir>$([System.IO.Path]::GetDirectoryName('%(_NuxmuxToolFiles.FullPath)'))</_NuxmuxSourceDir>
+            </_NuxmuxToolFiles>
+            <_NuxmuxToolFiles Update="@(_NuxmuxToolFiles)" Condition="$([System.IO.Path]::IsPathRooted('%(_NuxmuxToolFiles._NuxmuxToolPathTrim)'))">
+                <_NuxmuxShimDir>$([System.IO.Path]::GetFullPath('%(_NuxmuxToolFiles._NuxmuxToolPathTrim)'))</_NuxmuxShimDir>
+            </_NuxmuxToolFiles>
+            <_NuxmuxToolFiles Update="@(_NuxmuxToolFiles)" Condition="!$([System.IO.Path]::IsPathRooted('%(_NuxmuxToolFiles._NuxmuxToolPathTrim)'))">
+                <_NuxmuxShimDir>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(NuxmuxBaseDir)', '%(_NuxmuxToolFiles._NuxmuxToolPathTrim)'))))</_NuxmuxShimDir>
+            </_NuxmuxToolFiles>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxToolFiles Update="@(_NuxmuxToolFiles)">
+                <_NuxmuxConfigFile>$([System.IO.Path]::Combine('%(_NuxmuxToolFiles._NuxmuxShimDir)', 'nuxmux.config'))</_NuxmuxConfigFile>
+            </_NuxmuxToolFiles>
+        </ItemGroup>
+
+
+        <ItemGroup>
+            <_NuxmuxShimDirs Include="@(_NuxmuxToolFiles->'%(_NuxmuxShimDir)')"/>
+        </ItemGroup>
+
+        <RemoveDuplicates Inputs="@(_NuxmuxShimDirs)">
+            <Output TaskParameter="Filtered" ItemName="_NuxmuxShimDirsUnique"/>
+        </RemoveDuplicates>
+
+        <MakeDir Directories="@(_NuxmuxShimDirsUnique)"/>
+
+        <ItemGroup>
+            <_NuxmuxShimDest Include="@(_NuxmuxToolFiles->'$([MSBuild]::NormalizePath('%(_NuxmuxToolFiles._NuxmuxShimDir)', '%(_NuxmuxToolFiles._NuxmuxToolName)'))')"/>
+        </ItemGroup>
+
+        <RemoveDuplicates Inputs="@(_NuxmuxShimDest)">
+            <Output TaskParameter="Filtered" ItemName="_NuxmuxShimDestUnique"/>
+        </RemoveDuplicates>
+
+        <ItemGroup>
+            <_NuxmuxShimDestNew Include="@(_NuxmuxShimDestUnique)" Condition="!Exists('%(Identity)')"/>
+        </ItemGroup>
+
+        <Copy SourceFiles="@(_NuxmuxShimDestNew->'$(_NuxmuxTemplatePath)')"
+              DestinationFiles="@(_NuxmuxShimDestNew)"/>
+
+        <ItemGroup>
+            <_NuxmuxShimDirsUnique Update="@(_NuxmuxShimDirsUnique)">
+                <_NuxmuxShimDirWithSep>$([MSBuild]::EnsureTrailingSlash('%(Identity)'))</_NuxmuxShimDirWithSep>
+            </_NuxmuxShimDirsUnique>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxShimExisting Include="%(_NuxmuxShimDirsUnique._NuxmuxShimDirWithSep)*"
+                                 Condition="Exists('%(_NuxmuxShimDirsUnique.Identity)')"/>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxShimExisting Remove="@(_NuxmuxShimExisting)"
+                                 Condition="$([System.IO.Directory]::Exists('%(Identity)'))"/>
+            <_NuxmuxShimExisting Remove="@(_NuxmuxShimExisting)"
+                                 Condition="!$([System.IO.File]::Exists('%(Identity)'))"/>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxConfigFiles Include="@(_NuxmuxShimDirsUnique->'$([System.IO.Path]::Combine('%(Identity)', 'nuxmux.config'))')"/>
+        </ItemGroup>
+
+        <ItemGroup>
+            <_NuxmuxShimExisting Remove="@(_NuxmuxConfigFiles)"/>
+            <_NuxmuxShimExisting Remove="@(_NuxmuxShimDestUnique)"/>
+        </ItemGroup>
+
+        <GetFileHash Files="$(_NuxmuxTemplatePath)" Algorithm="SHA256">
+            <Output TaskParameter="Items" ItemName="_NuxmuxTemplateHash"/>
+        </GetFileHash>
+
+        <PropertyGroup>
+            <_NuxmuxTemplateHashValue>@(_NuxmuxTemplateHash->'%(FileHash)')</_NuxmuxTemplateHashValue>
+        </PropertyGroup>
+
+        <GetFileHash Files="@(_NuxmuxShimExisting)" Algorithm="SHA256">
+            <Output TaskParameter="Items" ItemName="_NuxmuxShimExistingHashed"/>
+        </GetFileHash>
+
+        <ItemGroup>
+            <_NuxmuxShimDelete Include="@(_NuxmuxShimExistingHashed)"
+                               Condition="'%(_NuxmuxShimExistingHashed.FileHash)' != '' and '$(_NuxmuxTemplateHashValue)' != '' and $([System.String]::Copy('%(_NuxmuxShimExistingHashed.FileHash)').Trim().ToUpperInvariant()) == $([System.String]::Copy('$(_NuxmuxTemplateHashValue)').Trim().ToUpperInvariant())"/>
+        </ItemGroup>
+
+        <Delete Files="@(_NuxmuxShimDelete)"/>
+
+        <ItemGroup>
+            <_NuxmuxRootsByPath Include="@(_NuxmuxToolFiles)">
+                <_NuxmuxConfigFile>%(_NuxmuxToolFiles._NuxmuxConfigFile)</_NuxmuxConfigFile>
+                <_NuxmuxRootDir>%(_NuxmuxToolFiles._NuxmuxSourceDir)</_NuxmuxRootDir>
+            </_NuxmuxRootsByPath>
+        </ItemGroup>
+
+        <RemoveDuplicates Inputs="@(_NuxmuxRootsByPath->'%(_NuxmuxConfigFile)|%(_NuxmuxRootDir)')">
+            <Output TaskParameter="Filtered" ItemName="_NuxmuxRootsByPathUnique"/>
+        </RemoveDuplicates>
+
+        <ItemGroup>
+            <_NuxmuxRootsByPathUnique Update="@(_NuxmuxRootsByPathUnique)">
+                <_NuxmuxConfigFile>$([System.String]::Copy('%(Identity)').Split('|')[0])</_NuxmuxConfigFile>
+                <_NuxmuxRootDir>$([System.String]::Copy('%(Identity)').Split('|')[1])</_NuxmuxRootDir>
+            </_NuxmuxRootsByPathUnique>
+        </ItemGroup>
+
+        <WriteLinesToFile File="%(_NuxmuxConfigFile)"
+                          Lines="@(_NuxmuxRootsByPathUnique->'%(_NuxmuxRootDir)')"
+                          Overwrite="true"
+                          Encoding="UTF-8"/>
+
+        <Exec Condition="'$(OS)' != 'Windows_NT'"
+              Command="chmod +x &quot;%(_NuxmuxShimDirsUnique._NuxmuxShimDirWithSep)&quot;*"/>
+
+    </Target>
+</Project>

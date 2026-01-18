@@ -1,0 +1,206 @@
+name: CI
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      run-id:
+        description: ci run id
+        value: ${{ github.run_id }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: win-arm64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: linux-arm64
+            os: ubuntu-latest
+          - rid: osx-x64
+            os: macos-latest
+          - rid: osx-arm64
+            os: macos-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Linux toolchain
+        if: startsWith(matrix.rid, 'linux-')
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang lld
+          if [[ "${{ matrix.rid }}" == "linux-arm64" ]]; then
+            arch="$(uname -m)"
+            if [[ "$arch" != "aarch64" && "$arch" != "arm64" ]]; then
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross
+            fi
+          fi
+
+      - name: Build runtime
+        env:
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+        run: |
+          set -euo pipefail
+          project="src/Nuxmux/Nuxmux.csproj"
+          rid="${{ matrix.rid }}"
+          publish_dir="artifacts/publish/$rid"
+          runtime_dir="artifacts/runtimes/$rid/native"
+          rm -rf "$publish_dir" "$runtime_dir"
+          mkdir -p "$publish_dir" "$runtime_dir"
+
+          chmod +x ./build.sh && ./build.sh "$rid" "$publish_dir"
+          
+          binary_name="nuxmux"
+          if [[ "$rid" == win-* ]]; then
+            binary_name+=".exe"
+          fi
+          if [[ ! -f "$publish_dir/$binary_name" ]]; then
+            echo "::error::Publish output not found: $publish_dir/$binary_name"
+            exit 1
+          fi
+          cp "$publish_dir/$binary_name" "$runtime_dir/"
+
+      - name: Upload runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxmux-runtime-${{ matrix.rid }}
+          path: artifacts/runtimes
+          if-no-files-found: error
+          retention-days: 1
+
+  pack:
+    name: Pack
+    runs-on: macos-latest
+    needs: build
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download runtimes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nuxmux-runtime-*
+          path: artifacts/runtimes
+          merge-multiple: true
+
+      - name: List runtime files
+        run: |
+          set -euo pipefail
+          find artifacts/runtimes -maxdepth 4 -type f -print
+
+      - name: Pack
+        env:
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/nuget"
+          dotnet restore "./src/Nuxmux/Nuxmux.csproj"
+          dotnet pack "./src/Nuxmux/Nuxmux.csproj" -c Release --no-build -o "./nuget" "-p:ArtifactsRoot=$GITHUB_WORKSPACE/artifacts/"
+
+      - name: Locate packages
+        id: pkgs
+        run: |
+          set -euo pipefail
+          files=()
+          while IFS= read -r f; do files+=("$f"); done < <(find "$GITHUB_WORKSPACE/nuget" -type f -name '*.nupkg' -print | sort)
+          if [ "${#files[@]}" -eq 0 ]; then echo "::error::No .nupkg found after pack.sh"; exit 1; fi
+          {
+            echo "paths<<EOF"
+            printf "%s\n" "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxmux-packages
+          path: ${{ steps.pkgs.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 1
+
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuxmux-packages
+          path: artifacts/packages
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          nupkg=$(find artifacts/packages -type f -name '*.nupkg' | sort | head -n 1)
+          if [[ -z "$nupkg" ]]; then
+            echo "::error::No .nupkg found for tests"
+            exit 1
+          fi
+          chmod +x ./src/tests/run-tests.sh ./src/tests/scripts/prepare-fixture.sh
+          ./src/tests/run-tests.sh "$nupkg"
+
+      - name: Upload MSBuild binlogs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxmux-binlogs-${{ matrix.os }}
+          path: src/tests/.temp/binlogs/*.binlog
+          if-no-files-found: warn
+          retention-days: 7

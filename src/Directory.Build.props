@@ -1,0 +1,76 @@
+<Project>
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Itexoft.Nuxmux</RootNamespace>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningLevel>10</WarningLevel>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <EnableDefaultItems>true</EnableDefaultItems>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>latest</LangVersion>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PackageLicenseExpression>MPL-2.0-no-copyleft-exception</PackageLicenseExpression>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RepositoryType>git</RepositoryType>
+        <Authors>Denis Kudelin</Authors>
+        <Company>Itexoft</Company>
+        <Copyright>$(Authors)</Copyright>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/Itexoft/nuxmux</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageProjectUrl>https://github.com/Itexoft/nuxmux</PackageProjectUrl>
+        <Description>Nuxmux</Description>
+        <PublishAot>true</PublishAot>
+        <SelfContained>true</SelfContained>
+        <Version>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../VERSION').Trim())</Version>
+        <ProductVersion>$(Version)</ProductVersion>
+        <PackageType>Dependency</PackageType>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <IsAotCompatible>true</IsAotCompatible>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="" Link="README.md"/>
+        <None Include="..\..\LICENSE.md" Pack="true" PackagePath="" Link="LICENSE.md"/>
+        <None Include="..\..\NOTICE.md" Pack="true" PackagePath="" Link="NOTICE.md"/>
+        <None Include="..\..\DONATE.md" Pack="true" PackagePath="" Link="DONATE.md"/>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <VersionFile>$(MSBuildThisFileDirectory)../VERSION</VersionFile>
+        <VersionFromFile Condition="Exists('$(VersionFile)')">$([System.IO.File]::ReadAllText('$(VersionFile)').Trim())</VersionFromFile>
+        <Version Condition="'$(VersionFromFile)' != ''">$(VersionFromFile)</Version>
+        <PackageVersion Condition="'$(VersionFromFile)' != ''">$(VersionFromFile)</PackageVersion>
+        <AssemblyVersion Condition="'$(VersionFromFile)' != ''">$(VersionFromFile)</AssemblyVersion>
+        <FileVersion Condition="'$(VersionFromFile)' != ''">$(VersionFromFile)</FileVersion>
+
+        <_RidPlatform Condition="'$(_Rid)' == '' and '$(_RidPlatform)' == '' and $([System.OperatingSystem]::IsWindows())">win</_RidPlatform>
+        <_RidPlatform Condition="'$(_Rid)' == '' and '$(_RidPlatform)' == '' and $([System.OperatingSystem]::IsMacOS())">osx</_RidPlatform>
+        <_RidPlatform Condition="'$(_Rid)' == '' and '$(_RidPlatform)' == '' and $([System.OperatingSystem]::IsLinux())">linux</_RidPlatform>
+        <_RidPlatform Condition="'$(_Rid)' == '' and '$(_RidPlatform)' == ''">neutral</_RidPlatform>
+
+        <_RidArch Condition="'$(_Rid)' == '' and '$(_RidArch)' == ''">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</_RidArch>
+        <_Rid Condition="'$(_Rid)' == ''">$(_RidPlatform)-$(_RidArch)</_Rid>
+        <_Rid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_Rid>
+        <_Rid Condition="'$(_Rid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_Rid>
+
+        <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+        <DefaultItemExcludesInProjectFolder>$(DefaultItemExcludesInProjectFolder);bin/**;obj/**</DefaultItemExcludesInProjectFolder>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <_ObjRoot>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', 'obj', '$(MSBuildProjectName)-$(_Rid)'))$([System.IO.Path]::DirectorySeparatorChar)</_ObjRoot>
+        <PublishRelease>true</PublishRelease>
+        <MSBuildProjectExtensionsPath>$(_ObjRoot)</MSBuildProjectExtensionsPath>
+        <BaseIntermediateOutputPath>$(MSBuildProjectExtensionsPath)</BaseIntermediateOutputPath>
+        <RestoreOutputPath>$(MSBuildProjectExtensionsPath)</RestoreOutputPath>
+        <BaseOutputPath>$(MSBuildProjectExtensionsPath)</BaseOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    </PropertyGroup>
+</Project>
