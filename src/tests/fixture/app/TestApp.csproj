@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <OutputType>Exe</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <NuxmuxBaseDir>$(MSBuildProjectDirectory)/mux</NuxmuxBaseDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <NuxmuxDir Include="$(MSBuildProjectDirectory)/tools-src/core/*" Path="core"/>
+        <NuxmuxDir Include="$(MSBuildProjectDirectory)/tools-src/net/dns/*" Path="net/dns"/>
+        <NuxmuxDir Include="$(MSBuildProjectDirectory)/tools-src/net/http/clients/*" Path="net/http/clients"/>
+        <NuxmuxDir Include="$(MSBuildProjectDirectory)/tools-src/dev/*" Path="dev"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="$(NuxmuxPackageId)" Version="$(NuxmuxPackageVersion)" PrivateAssets="all"/>
+    </ItemGroup>
+</Project>

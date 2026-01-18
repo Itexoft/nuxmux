@@ -1,0 +1,24 @@
+<Project>
+    <PropertyGroup>
+        <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(_Rid)</RuntimeIdentifier>
+        <PublishDir>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', 'bin', '$(MSBuildProjectName)-$(_Rid)-$(TargetFramework)-$(Configuration)-publish'))$([System.IO.Path]::DirectorySeparatorChar)</PublishDir>
+        <OutDir>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', 'bin', '$(MSBuildProjectName)-$(_Rid)-$(TargetFramework)-$(Configuration)'))$([System.IO.Path]::DirectorySeparatorChar)</OutDir>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <OptimizationPreference>Size</OptimizationPreference>
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+        <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+        <IncludeSymbols>false</IncludeSymbols>
+        <StripSymbols>true</StripSymbols>
+        <OptimizationPreference>Size</OptimizationPreference>
+        <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <StripSymbols>false</StripSymbols>
+    </PropertyGroup>
+</Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <AssemblyName>nuxmux</AssemblyName>
+        <PackageId>nuxmux</PackageId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Condition="$(ArtifactsRoot) != ''" Include="$(ArtifactsRoot)/**" Pack="true" PackagePath=""/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="buildTransitive/**" Pack="true" PackagePath="buildTransitive/"/>
+    </ItemGroup>
+</Project>

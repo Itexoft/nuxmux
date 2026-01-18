@@ -1,0 +1,50 @@
+name: Publish
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  packages: write
+
+concurrency:
+  group: publish-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  release:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-release.yml@master
+    with:
+      branch: master
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: nuxmux-packages
+      tag-prefix: v
+      generate-notes: false
+      allow-version-mismatch: false
+    secrets: inherit
+
+  package:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-package.yml@master
+    with:
+      branch: master
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: nuxmux-packages
+      allow-version-mismatch: false
+    secrets: inherit
+
+  nuget:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-nuget.yml@master
+    with:
+      branch: master
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: nuxmux-packages
+      source: https://api.nuget.org/v3/index.json
+      allow-version-mismatch: false
+    secrets: inherit

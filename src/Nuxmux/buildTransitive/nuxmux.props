@@ -1,0 +1,18 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+
+<Project>
+    <PropertyGroup>
+        <_NuxmuxHostRid Condition="'$(_NuxmuxHostRid)' == '' and '$(NETCoreSdkRuntimeIdentifier)' != ''">$(NETCoreSdkRuntimeIdentifier)</_NuxmuxHostRid>
+        <_NuxmuxHostRidBase Condition="'$(_NuxmuxHostRid)' == '' and $([System.OperatingSystem]::IsWindows())">win</_NuxmuxHostRidBase>
+        <_NuxmuxHostRidBase Condition="'$(_NuxmuxHostRid)' == '' and $([System.OperatingSystem]::IsMacOS())">osx</_NuxmuxHostRidBase>
+        <_NuxmuxHostRidBase Condition="'$(_NuxmuxHostRid)' == '' and $([System.OperatingSystem]::IsLinux())">linux</_NuxmuxHostRidBase>
+        <_NuxmuxHostArch Condition="'$(_NuxmuxHostRid)' == ''">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</_NuxmuxHostArch>
+        <_NuxmuxHostRid Condition="'$(_NuxmuxHostRid)' == '' and '$(_NuxmuxHostRidBase)' != '' and '$(_NuxmuxHostArch)' != ''">$(_NuxmuxHostRidBase)-$(_NuxmuxHostArch)</_NuxmuxHostRid>
+        <_NuxmuxTemplateFileName>nuxmux</_NuxmuxTemplateFileName>
+        <NuxmuxBaseDir Condition="'$(NuxmuxBaseDir)' == ''">$([System.IO.Path]::Combine('$(MSBuildProjectExtensionsPath)', '$(_NuxmuxTemplateFileName)', '$(_NuxmuxHostRid)'))$([System.IO.Path]::DirectorySeparatorChar)</NuxmuxBaseDir>
+        <_NuxmuxTemplateFileName Condition="'$(OS)' == 'Windows_NT'">$(_NuxmuxTemplateFileName).exe</_NuxmuxTemplateFileName>
+    </PropertyGroup>
+</Project>
